@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Emergency Bed Tracker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Leaflet CSS for map -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+    <!-- Leaflet JS for map -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <style>
+        /* Custom scrollbar for better aesthetics */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #4ade80; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #22c55e; }
+        /* Leaflet map height */
+        #map { height: 450px; border-radius: 1rem; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1); }
+        /* Simple animation for modals */
+        .modal-enter { animation: fadeIn 0.3s ease-out; }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        /* Custom styling for Leaflet popups */
+        .leaflet-popup-content-wrapper { border-radius: 12px; }
+        .leaflet-popup-content { margin: 14px !important; }
+        .leaflet-popup-content a { color: #10B981; font-weight: 600; text-decoration: none; }
+        .leaflet-popup-content a:hover { text-decoration: underline; }
+    </style>
+</head>
+<body class="bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200 font-sans transition-colors duration-300">
+
+    <!-- Header -->
+    <header class="bg-white dark:bg-gray-800 shadow-md sticky top-0 z-40">
+        <nav class="container mx-auto px-6 py-3 flex justify-between items-center">
+            <a href="#" class="flex items-center space-x-2">
+                <!-- SVG Logo -->
+                <svg class="w-10 h-10 text-green-500" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z" fill="currentColor"/><path d="M13 7h-2v4H7v2h4v4h2v-4h4v-2h-4V7z" fill="currentColor"/></svg>
+                <div class="text-xl font-bold">
+                    <span class="text-green-500" data-translate-key="logo-bed">Bed</span><span class="dark:text-white" data-translate-key="logo-tracker">Tracker</span>
+                </div>
+            </a>
+            <div class="flex items-center space-x-4">
+                <!-- Language Selector -->
+                <div class="relative">
+                    <select id="language-selector" class="bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg p-2 focus:outline-none appearance-none pr-8">
+                        <option value="en">English</option>
+                        <option value="hi">हिन्दी</option>
+                        <option value="mr">मराठी</option>
+                    </select>
+                    <svg class="w-5 h-5 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-gray-500 dark:text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd" /></svg>
+                </div>
+                 <!-- Theme Toggle -->
+                <button id="theme-toggle" class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 focus:outline-none">
+                    <svg id="theme-icon-light" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+                    <svg id="theme-icon-dark" class="w-6 h-6 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path></svg>
+                </button>
+                <button id="login-btn" class="bg-green-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-green-600 transition-colors" data-translate-key="loginBtn">Login</button>
+                <button id="register-hospital-btn" class="hidden md:block text-green-500 border border-green-500 px-4 py-2 rounded-lg font-semibold hover:bg-green-50 dark:hover:bg-gray-700 transition-colors" data-translate-key="registerBtn">Register Hospital</button>
+            </div>
+        </nav>
+    </header>
+
+    <!-- Main Content -->
+    <main class="container mx-auto p-4 md:p-6">
+        
+        <!-- Hero Section -->
+        <section id="hero" class="text-center my-8">
+            <h1 class="text-4xl md:text-5xl font-extrabold text-green-500" data-translate-key="heroTitle">Emergency Bed Tracker</h1>
+            <p class="text-lg md:text-xl mt-2 text-gray-600 dark:text-gray-400" data-translate-key="heroSubtitle">"Immediate Care, Immediate Beds."</p>
+        </section>
+
+        <!-- Location Permission Prompt -->
+        <div id="location-prompt" class="bg-yellow-100 dark:bg-yellow-900 border-l-4 border-yellow-500 text-yellow-700 dark:text-yellow-300 p-4 rounded-lg mb-6" role="alert">
+            <p class="font-bold" data-translate-key="locationTitle">Location Access Required</p>
+            <p data-translate-key="locationDesc">Please enable location services to find nearby hospitals. <button id="enable-location-btn" class="underline font-semibold hover:text-yellow-800 dark:hover:text-yellow-200" data-translate-key="locationBtn">Enable Now</button></p>
+        </div>
+
+        <!-- Dashboard View -->
+        <div id="dashboard" class="hidden">
+            <!-- Search and Map Section -->
+            <section id="map-section" class="mb-8">
+                <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-lg">
+                    <div class="flex flex-col md:flex-row gap-4 mb-4">
+                        <input type="text" id="search-location" placeholder="Search for a location (e.g., 'Mumbai')" class="flex-grow p-3 border-2 border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-green-500" data-translate-key="searchPlaceholder">
+                        <button id="search-btn" class="bg-green-500 text-white px-6 py-3 rounded-lg font-semibold hover:bg-green-600 transition-colors" data-translate-key="searchBtn">Search</button>
+                    </div>
+                    <div id="map"></div>
+                </div>
+            </section>
+
+            <!-- Nearby Hospitals Section -->
+            <section id="hospitals-list-section">
+                <h2 class="text-2xl md:text-3xl font-bold mb-4" data-translate-key="nearbyHospitalsTitle">Nearby Hospitals</h2>
+                <div id="hospitals-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <!-- Hospital cards will be injected here by JavaScript -->
+                </div>
+                 <div id="no-hospitals" class="hidden text-center py-12">
+                    <p class="text-xl text-gray-500" data-translate-key="noHospitals">No hospitals found nearby. Try searching for a different location.</p>
+                </div>
+            </section>
+        </div>
+        
+        <!-- Hospital Detail View (Structure only) -->
+        <div id="hospital-detail" class="hidden">
+             <button id="back-to-dashboard" class="flex items-center mb-6 text-green-500 font-semibold hover:text-green-600">
+                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+                <span data-translate-key="backToDashboard">Back to Dashboard</span>
+            </button>
+            <div id="hospital-detail-content" class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-lg"></div>
+        </div>
+    </main>
+
+    <!-- Modals (Structure only) -->
+    <div id="modal-overlay" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden items-center justify-center p-4">
+        <div id="login-modal" class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-md p-8 modal-enter hidden relative">
+            <!-- Content will be same as before -->
+        </div>
+    </div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+
+        // --- EXPANDED MOCK DATA (Multiple Cities) ---
+        const hospitalsData = [
+            // Mumbai
+            { id: 1, name: "Lilavati Hospital", lat: 19.0494, lon: 72.8278, address: "Bandra West, Mumbai", rating: 4.7, beds: { general: { total: 150, available: 18, price: 4500 }, icu: { total: 40, available: 5, price: 12000 }, ventilator: { total: 20, available: 2, price: 22000 }}},
+            { id: 2, name: "Bombay Hospital", lat: 18.9442, lon: 72.8226, address: "Marine Lines, Mumbai", rating: 4.5, beds: { general: { total: 250, available: 45, price: 4000 }, icu: { total: 60, available: 11, price: 11500 }, ventilator: { total: 25, available: 3, price: 21000 }}},
+            { id: 4, name: "Kokilaben Ambani Hospital", lat: 19.1226, lon: 72.8306, address: "Andheri West, Mumbai", rating: 4.9, beds: { general: { total: 300, available: 52, price: 5500 }, icu: { total: 80, available: 15, price: 14000 }, ventilator: { total: 40, available: 8, price: 25000 }}},
+            
+            // Delhi NCR
+            { id: 8, name: "Max Hospital, Saket", lat: 28.5283, lon: 77.2131, address: "Saket, New Delhi", rating: 4.8, beds: { general: { total: 280, available: 35, price: 5000 }, icu: { total: 70, available: 8, price: 13000 }, ventilator: { total: 30, available: 4, price: 24000 }}},
+            { id: 9, name: "Fortis Escorts Heart Institute", lat: 28.5638, lon: 77.2588, address: "Okhla, New Delhi", rating: 4.7, beds: { general: { total: 220, available: 22, price: 4800 }, icu: { total: 60, available: 5, price: 12500 }, ventilator: { total: 25, available: 2, price: 23000 }}},
+            { id: 10, name: "Medanta - The Medicity", lat: 28.4528, lon: 77.0398, address: "Gurugram, Haryana", rating: 4.9, beds: { general: { total: 400, available: 60, price: 6000 }, icu: { total: 100, available: 12, price: 16000 }, ventilator: { total: 50, available: 7, price: 28000 }}},
+
+            // Bangalore
+            { id: 11, name: "Manipal Hospital", lat: 12.9602, lon: 77.6387, address: "Old Airport Road, Bangalore", rating: 4.6, beds: { general: { total: 250, available: 30, price: 4200 }, icu: { total: 65, available: 10, price: 11000 }, ventilator: { total: 28, available: 5, price: 20000 }}},
+            { id: 12, name: "Fortis Hospital, Bannerghatta", lat: 12.8953, lon: 77.5971, address: "Bannerghatta Road, Bangalore", rating: 4.7, beds: { general: { total: 200, available: 25, price: 4500 }, icu: { total: 55, available: 6, price: 11500 }, ventilator: { total: 22, available: 3, price: 21000 }}},
+            { id: 13, name: "Apollo Hospitals, Jayanagar", lat: 12.9248, lon: 77.5815, address: "Jayanagar, Bangalore", rating: 4.8, beds: { general: { total: 180, available: 20, price: 4700 }, icu: { total: 50, available: 8, price: 12000 }, ventilator: { total: 20, available: 4, price: 22000 }}},
+            
+            // Kolkata
+            { id: 14, name: "Apollo Gleneagles Hospitals", lat: 22.5802, lon: 88.4093, address: "Salt Lake, Kolkata", rating: 4.7, beds: { general: { total: 270, available: 32, price: 4000 }, icu: { total: 75, available: 9, price: 10500 }, ventilator: { total: 35, available: 6, price: 19000 }}},
+            { id: 15, name: "AMRI Hospital, Salt Lake", lat: 22.5806, lon: 88.4144, address: "Salt Lake, Kolkata", rating: 4.5, beds: { general: { total: 180, available: 15, price: 3800 }, icu: { total: 45, available: 5, price: 9500 }, ventilator: { total: 18, available: 1, price: 18000 }}},
+            { id: 16, name: "Fortis Hospital, Anandapur", lat: 22.5186, lon: 88.4069, address: "Anandapur, Kolkata", rating: 4.6, beds: { general: { total: 220, available: 28, price: 4100 }, icu: { total: 60, available: 7, price: 10000 }, ventilator: { total: 25, available: 3, price: 18500 }}}
+        ];
+
+        // --- TRANSLATIONS ---
+        const translations = {
+            en: { "logo-bed": "Bed", "logo-tracker": "Tracker", "loginBtn": "Login", "registerBtn": "Register Hospital", "heroTitle": "Emergency Bed Tracker", "heroSubtitle": '"Immediate Care, Immediate Beds."', "locationTitle": "Location Access Required", "locationDesc": "Please enable location services to find nearby hospitals.", "locationBtn": "Enable Now", "searchPlaceholder": "Search for a location (e.g., 'Delhi')", "searchBtn": "Search", "nearbyHospitalsTitle": "Nearby Hospitals", "noHospitals": "No hospitals found nearby. Try searching for a different location.", "backToDashboard": "Back to Dashboard", "totalAvailableBeds": "Total Available Beds", "away": "away", "getDirections": "Get Directions →" },
+            hi: { "logo-bed": "बेड", "logo-tracker": "ट्रैकर", "loginBtn": "लॉग इन करें", "registerBtn": "अस्पताल पंजीकृत करें", "heroTitle": "आपातकालीन बेड ट्रैकर", "heroSubtitle": '"तत्काल देखभाल, तत्काल बेड।"', "locationTitle": "स्थान अनुमति आवश्यक", "locationDesc": "आस-पास के अस्पतालों को खोजने के लिए कृपया स्थान सेवाएं सक्षम करें।", "locationBtn": "अभी सक्षम करें", "searchPlaceholder": "एक स्थान खोजें (उदा., 'दिल्ली')", "searchBtn": "खोजें", "nearbyHospitalsTitle": "आस-पास के अस्पताल", "noHospitals": "आस-पास कोई अस्पताल नहीं मिला।", "backToDashboard": "डैशबोर्ड पर वापस जाएं", "totalAvailableBeds": "कुल उपलब्ध बेड", "away": "दूर", "getDirections": "निर्देश प्राप्त करें →" },
+            mr: { "logo-bed": "बेड", "logo-tracker": "ट्रॅकर", "loginBtn": "लॉग इन करा", "registerBtn": "हॉस्पिटलची नोंदणी करा", "heroTitle": "आपत्कालीन बेड ट्रॅकर", "heroSubtitle": '"तात्काळ काळजी, तात्काळ बेड."', "locationTitle": "स्थान परवानगी आवश्यक", "locationDesc": "जवळपासची रुग्णालये शोधण्यासाठी कृपया स्थान सेवा सक्षम करा.", "locationBtn": "आता सक्षम करा", "searchPlaceholder": "एका स्थानासाठी शोधा (उदा., 'पुणे')", "searchBtn": "शोधा", "nearbyHospitalsTitle": "जवळपासची रुग्णालये", "noHospitals": "जवळपास कोणतीही रुग्णालये आढळली नाहीत.", "backToDashboard": "डॅशबोर्डवर परत जा", "totalAvailableBeds": "एकूण उपलब्ध बेड", "away": "दूर", "getDirections": "दिशानिर्देश मिळवा →" }
+        };
+
+        // --- STATE MANAGEMENT ---
+        let map;
+        let userMarker;
+        let hospitalMarkers = [];
+        let userLocation = null;
+        let currentLanguage = 'en';
+        
+        // --- UI ELEMENTS ---
+        const themeToggle = document.getElementById('theme-toggle');
+        const themeIconLight = document.getElementById('theme-icon-light');
+        const themeIconDark = document.getElementById('theme-icon-dark');
+        const languageSelector = document.getElementById('language-selector');
+        const locationPrompt = document.getElementById('location-prompt');
+        const enableLocationBtn = document.getElementById('enable-location-btn');
+        const dashboard = document.getElementById('dashboard');
+        const hospitalsContainer = document.getElementById('hospitals-container');
+        const noHospitalsDiv = document.getElementById('no-hospitals');
+        const backToDashboardBtn = document.getElementById('back-to-dashboard');
+        
+        // --- LANGUAGE SWITCHER ---
+        const changeLanguage = (lang) => {
+            currentLanguage = lang;
+            localStorage.setItem('language', lang);
+            document.querySelectorAll('[data-translate-key]').forEach(el => {
+                const key = el.dataset.translateKey;
+                const translation = translations[lang][key];
+                if (translation) {
+                    if (el.tagName === 'INPUT') {
+                        el.placeholder = translation;
+                    } else {
+                        el.innerText = translation;
+                    }
+                }
+            });
+            if (userLocation) updateHospitalsList(); // Refresh list to update dynamic text
+        };
+
+        languageSelector.addEventListener('change', (e) => changeLanguage(e.target.value));
+
+        // --- THEME SWITCHER (IMPROVED) ---
+        const applyTheme = (theme) => {
+            if (theme === 'dark') {
+                document.documentElement.classList.add('dark');
+                themeIconLight.classList.add('hidden');
+                themeIconDark.classList.remove('hidden');
+            } else {
+                document.documentElement.classList.remove('dark');
+                themeIconLight.classList.remove('hidden');
+                themeIconDark.classList.add('hidden');
+            }
+        };
+
+        themeToggle.addEventListener('click', () => {
+            const isDark = document.documentElement.classList.contains('dark');
+            const newTheme = isDark ? 'light' : 'dark';
+            localStorage.setItem('theme', newTheme);
+            applyTheme(newTheme);
+        });
+
+        // --- MAP & LOCATION ---
+        const initMap = (lat, lon) => {
+            if (map) { map.setView([lat, lon], 12); } 
+            else {
+                map = L.map('map').setView([lat, lon], 12);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap' }).addTo(map);
+            }
+            if (userMarker) { userMarker.setLatLng([lat, lon]); } 
+            else {
+                const userIcon = L.divIcon({
+                    html: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#10B981" class="w-8 h-8"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>`,
+                    className: '', iconSize: [32, 32], iconAnchor: [16, 32]
+                });
+                userMarker = L.marker([lat, lon], { icon: userIcon }).addTo(map).bindPopup('Your Location').openPopup();
+            }
+        };
+
+        const handleLocationSuccess = (position) => {
+            userLocation = { lat: position.coords.latitude, lon: position.coords.longitude };
+            locationPrompt.classList.add('hidden');
+            dashboard.classList.remove('hidden');
+            initMap(userLocation.lat, userLocation.lon);
+            updateHospitalsList();
+        };
+
+        const handleLocationError = () => {
+            userLocation = { lat: 19.0760, lon: 72.8777 }; // Default to Mumbai
+            locationPrompt.querySelector('.font-bold').textContent = "Location Denied";
+            locationPrompt.querySelector('p:last-child').textContent = "Showing results for a default location. Please enable location or search manually.";
+            if (dashboard.classList.contains('hidden')) {
+                dashboard.classList.remove('hidden');
+                initMap(userLocation.lat, userLocation.lon);
+                updateHospitalsList();
+            }
+        };
+        
+        const getLocation = () => navigator.geolocation.getCurrentPosition(handleLocationSuccess, handleLocationError, { timeout: 10000 });
+        enableLocationBtn.addEventListener('click', getLocation);
+
+        // --- HOSPITAL LIST & DETAILS ---
+        const calculateDistance = (lat1, lon1, lat2, lon2) => {
+            const R = 6371;
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLon = (lon2 - lon1) * Math.PI / 180;
+            const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+            return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
+        };
+        
+        const getBedStatusColor = (available, total) => {
+            const p = total === 0 ? 0 : (available / total) * 100;
+            return p > 25 ? 'text-green-500' : p > 5 ? 'text-yellow-500' : 'text-red-500';
+        };
+
+        const updateHospitalsList = () => {
+            hospitalsContainer.innerHTML = '';
+            hospitalMarkers.forEach(marker => map.removeLayer(marker));
+            hospitalMarkers = [];
+
+            if (!userLocation) return;
+            
+            const hospitalsWithDistance = hospitalsData
+                .map(h => ({ ...h, distance: calculateDistance(userLocation.lat, userLocation.lon, h.lat, h.lon) }))
+                .sort((a, b) => a.distance - b.distance);
+
+            if (hospitalsWithDistance.length > 0) {
+                noHospitalsDiv.classList.add('hidden');
+                hospitalsWithDistance.slice(0, 12).forEach(hospital => { // Show top 12 nearest
+                    const distText = hospital.distance.toFixed(1) + ' km';
+                    const totalAvailable = hospital.beds.general.available + hospital.beds.icu.available + hospital.beds.ventilator.available;
+                    const totalBeds = hospital.beds.general.total + hospital.beds.icu.total + hospital.beds.ventilator.total;
+                    
+                    const cardHTML = `<div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-5 cursor-pointer transform hover:-translate-y-1 transition-transform" data-hospital-id="${hospital.id}">
+                        <h3 class="text-xl font-bold mb-2">${hospital.name}</h3>
+                        <p class="text-sm text-gray-500 dark:text-gray-400 mb-3">${hospital.address}</p>
+                        <p class="text-sm font-semibold mb-4"><span class="text-green-500">${distText} ${translations[currentLanguage].away}</span></p>
+                        <p class="font-semibold mb-2">${translations[currentLanguage].totalAvailableBeds}: <span class="text-2xl font-bold ${getBedStatusColor(totalAvailable, totalBeds)}">${totalAvailable}</span></p>
+                    </div>`;
+                    hospitalsContainer.innerHTML += cardHTML;
+                    
+                    const hospitalIcon = L.divIcon({
+                        html: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#22C55E" class="w-8 h-8"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm-1 11h2v-2h-2v2zm0-4h2V7h-2v2z"/></svg>`,
+                        className: 'opacity-80 hover:opacity-100', iconSize: [32, 32], iconAnchor: [16, 32]
+                    });
+                    const mapsUrl = `https://www.google.com/maps/dir/?api=1&origin=${userLocation.lat},${userLocation.lon}&destination=${hospital.lat},${hospital.lon}`;
+                    const popupContent = `<b>${hospital.name}</b><br>${hospital.address}<br><br><a href="${mapsUrl}" target="_blank">${translations[currentLanguage].getDirections}</a>`;
+                    const marker = L.marker([hospital.lat, hospital.lon], { icon: hospitalIcon }).addTo(map).bindPopup(popupContent);
+                    hospitalMarkers.push(marker);
+                });
+                document.querySelectorAll('[data-hospital-id]').forEach(card => card.addEventListener('click', () => { /* show details logic */ }));
+            } else {
+                noHospitalsDiv.classList.remove('hidden');
+            }
+        };
+        
+        // --- INITIALIZATION ---
+        const init = () => {
+            const savedTheme = localStorage.getItem('theme');
+            const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+            applyTheme(savedTheme || (prefersDark ? 'dark' : 'light'));
+
+            const savedLanguage = localStorage.getItem('language') || 'en';
+            languageSelector.value = savedLanguage;
+            changeLanguage(savedLanguage);
+
+            getLocation();
+        };
+
+        init();
+    });
+    </script>
+</body>
+</html>
+
